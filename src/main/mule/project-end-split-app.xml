@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:batch="http://www.mulesoft.org/schema/mule/batch"
+	xmlns:file="http://www.mulesoft.org/schema/mule/file"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd
+http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/batch/current/mule-batch.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<file:config name="File_Config" doc:name="File Config" doc:id="0fae7f76-6da8-4999-b8c0-307809565002" />
+	<flow name="project-end-split-appFlow" doc:id="e4d11c7b-2c07-4d5f-883a-df2fca8e3483" >
+		<file:listener doc:name="On New or Updated File" doc:id="3bb686cf-e425-4687-b119-7a1379c9f37d" config-ref="File_Config" directory="C:\Test\inputs" autoDelete="true" moveToDirectory="C:\Test\archieve">
+			<scheduling-strategy >
+				<fixed-frequency />
+			</scheduling-strategy>
+		</file:listener>
+		<set-variable value="#[attributes.fileName]" doc:name="Set Variable" doc:id="068c0f81-5346-43c8-a542-a2991aa984ec" variableName="fileName"/>
+		<ee:transform doc:name="Transform Message" doc:id="bf3aada6-d1f9-45d7-ac24-369c21cc550e" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+read(payload,"application/csv",{header:true, "separator": "|" })]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<batch:job jobName="project-end-split-appBatch_Job" doc:id="e8edc784-d22d-4291-8507-9febcb7d7124" blockSize="20000">
+			<batch:process-records >
+				<batch:step name="Batch_Step" doc:id="a9f90579-983b-4e7a-9759-255af1b8d8c7" >
+					<batch:aggregator doc:name="Batch Aggregator" doc:id="3a0f3d8a-a331-4c93-97a5-337b60756b9f" size="20000" preserveMimeTypes="true">
+						<set-variable value='#[%dw 2.0&#10;import * from dw::core::Strings&#10;---&#10;"C:\Test\output\\" ++ substringBefore(vars.fileName, ".") ++ "_" ++ now() as String {format: "ddMMyyhhmmssSSS"} ++ ".txt"]' doc:name="Set Variable" doc:id="373fdce7-bbc3-4aac-834b-b413abdf9f27" variableName="newFileName"/>
+						<ee:transform doc:name="Transform Message" doc:id="1f628314-5d65-4694-85d8-74b91602fcde" >
+							<ee:message >
+								<ee:set-payload ><![CDATA[%dw 2.0
+output application/csv header=true
+---
+payload]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+						<file:write doc:name="Write" doc:id="145d09e4-ffcc-404f-b94a-a6dec4cb74ae" config-ref="File_Config" path="#[vars.newFileName]" mode="CREATE_NEW"/>
+						<remove-variable doc:name="Remove Variable" doc:id="f6979926-8535-49d9-97f9-9233cae9982c" variableName="newFileName"/>
+					</batch:aggregator>
+				</batch:step>
+			</batch:process-records>
+		</batch:job>
+	</flow>
+</mule>
