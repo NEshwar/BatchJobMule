@@ -40,6 +40,9 @@ payload]]></ee:set-payload>
 					</batch:aggregator>
 				</batch:step>
 			</batch:process-records>
+			<batch:on-complete >
+				<logger level="INFO" doc:name="Logger" doc:id="2a4e81ff-91bb-4004-90b8-bfa1c3d7e9ce" message="#[payload]"/>
+			</batch:on-complete>
 		</batch:job>
 	</flow>
 </mule>
